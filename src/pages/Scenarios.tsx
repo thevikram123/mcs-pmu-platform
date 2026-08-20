@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Banner, Card, Chip, Empty, Money } from '../components/ui';
 import { CompareChart, CostOverTime } from '../components/charts';
+import HowTo from '../components/HowTo';
 import { baseline, useResult } from '../model/useModel';
 import { computeScenario, countChanges } from '../model/engine';
 import { crore, deltaCr, pct } from '../model/format';
@@ -136,6 +137,20 @@ export default function Scenarios() {
           {msg}
         </div>
       )}
+
+      <HowTo
+        id="scenarios"
+        purpose="Keep several versions of the budget side by side, compare any two, and produce the Excel or PDF you hand to someone else."
+        steps={[
+          { do: 'Click a scenario name', then: 'to make it the one you are working on' },
+          { do: 'Click ⇄ on another', then: 'to compare the two at the bottom of the page' },
+          { do: 'Download Excel', then: 'a full multi-sheet workbook of this scenario' },
+          { do: 'Download PDF', then: 'a report with charts and an assumptions appendix' },
+          { do: 'Use ⎘ ✎ ✕', then: 'to duplicate, rename or delete a scenario' },
+          { do: 'Download / Import JSON', then: 'to move a scenario between browsers or people' },
+        ]}
+        note="Everything lives in this browser. The Baseline row is the tendered BOQ and cannot be edited or deleted."
+      />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card

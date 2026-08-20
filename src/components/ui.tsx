@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
-import { crore, rupees, signedPct } from '../model/format';
+import { crore, differs, exactNum, preciseNum, rupees, signedPct } from '../model/format';
 
 /* ------------------------------------------------------------------ layout */
 
@@ -226,7 +226,7 @@ export function NumberCell({
   value,
   baseline,
   onChange,
-  format = (v) => (v ? v.toLocaleString('en-IN', { maximumFractionDigits: 0 }) : '0'),
+  format = (v) => preciseNum(v),
   align = 'right',
   width = 'w-32',
   disabled,
@@ -240,7 +240,19 @@ export function NumberCell({
   disabled?: boolean;
 }) {
   const [draft, setDraft] = useState<string | null>(null);
-  const dirty = baseline !== undefined && Math.abs(value - baseline) > 0.5;
+  const [focused, setFocused] = useState(false);
+  const dirty = baseline !== undefined && differs(value, baseline);
+
+  // While focused the field shows the raw unformatted number, so what the user
+  // edits is exactly what the model holds — no thousands separators to re-parse
+  // and no display rounding standing between them and the real value.
+  const shown = draft ?? (focused ? String(value) : format(value));
+
+  const tip =
+    baseline !== undefined && differs(value, baseline)
+      ? `Value: ${exactNum(value)}  ·  Source: ${exactNum(baseline)}`
+      : `Value: ${exactNum(value)}`;
+
   return (
     <input
       className={`inp ${width} !py-1 ${align === 'right' ? 'text-right' : ''}`}
@@ -250,22 +262,30 @@ export function NumberCell({
           : undefined
       }
       disabled={disabled}
-      value={draft ?? format(value)}
-      title={baseline !== undefined ? `Source value: ${format(baseline)}` : undefined}
+      value={shown}
+      title={tip}
       onChange={(e) => setDraft(e.target.value)}
+      onFocus={(e) => {
+        setFocused(true);
+        requestAnimationFrame(() => e.target.select());
+      }}
       onBlur={(e) => {
-        // Only commit when the user actually typed. The display is rounded, so
-        // a focus-and-tab-out would otherwise silently overwrite a precise
-        // source rate (e.g. 58,739.6252) with its rounded form.
+        setFocused(false);
+        // Commit only when the user actually typed. Belt and braces alongside
+        // the full-precision display: focusing a field and tabbing straight out
+        // must never rewrite the value.
         if (draft !== null) {
-          const n = Number(e.target.value.replace(/[,\s₹]/g, ''));
+          const n = Number(e.target.value.replace(/[,\s₹−]/g, ''));
           if (Number.isFinite(n)) onChange(n);
         }
         setDraft(null);
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
-        if (e.key === 'Escape') setDraft(null);
+        if (e.key === 'Escape') {
+          setDraft(null);
+          (e.target as HTMLInputElement).blur();
+        }
       }}
     />
   );

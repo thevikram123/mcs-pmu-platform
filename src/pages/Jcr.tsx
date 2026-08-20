@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Banner, Card, Chip, Empty, KpiTile, Money, NumberCell, Toggle } from '../components/ui';
 import { RankBar } from '../components/charts';
+import HowTo from '../components/HowTo';
 import { baseline, useResult } from '../model/useModel';
-import { crore, num, pct } from '../model/format';
+import { crore, pct } from '../model/format';
 import { deriveRow, EMPTY_ENTRY, useJcr, type ChangeOrder } from '../store/jcr';
 
 const STATUSES: ChangeOrder['status'][] = [
@@ -93,6 +94,19 @@ export default function Jcr() {
             />
           </div>
         }
+      />
+
+      <HowTo
+        id="jcr"
+        purpose="Track what has actually been committed and spent against each cost code, and see where the project is forecast to land."
+        steps={[
+          { do: 'Set the as-of date', then: 'in the header, so the report is dated' },
+          { do: 'Type into Committed and Actual', then: 'the rupee amounts for each cost code' },
+          { do: 'Enter % Complete', then: 'the forecast final cost and variance calculate themselves' },
+          { do: 'Log variations under Change orders', then: 'only HPC-approved ones change the revised budget' },
+          { do: 'Open By vendor', then: 'to see budget by OEM and the largest variances' },
+        ]}
+        note="Green variance means under budget, red means over. Entries are saved in this browser only — use Scenarios → Download scenario JSON to share them."
       />
 
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -202,7 +216,6 @@ export default function Jcr() {
                           value={e.committed}
                           width="w-[112px]"
                           onChange={(v) => jcr.setEntry(x.code, { committed: v })}
-                          format={(v) => num(v, 0)}
                         />
                       </td>
                       <td className="r muted">{pct(x.pctCommitted)}</td>
@@ -211,7 +224,6 @@ export default function Jcr() {
                           value={e.actual}
                           width="w-[112px]"
                           onChange={(v) => jcr.setEntry(x.code, { actual: v })}
-                          format={(v) => num(v, 0)}
                         />
                       </td>
                       <td className="r">
@@ -355,7 +367,6 @@ export default function Jcr() {
                           value={c.budgetImpact}
                           width="w-[124px]"
                           onChange={(v) => jcr.updateChangeOrder(c.id, { budgetImpact: v })}
-                          format={(v) => num(v, 0)}
                         />
                       </td>
                       <td>

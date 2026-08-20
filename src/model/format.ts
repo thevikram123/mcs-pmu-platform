@@ -68,3 +68,37 @@ export function yearLabel(i: number): string {
 export function uid(prefix = 'id'): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
+
+/**
+ * Render a number without hiding what it actually is.
+ *
+ * Many source figures carry decimals — unit rates like 58,739.6252 and OPEX
+ * annual values like 82,484,334.333333. Rendering those to 0dp puts a number on
+ * screen that is not the number in the model, so an editable field showing
+ * "58,740" is misleading before the user has touched anything. This keeps up to
+ * `maxDp` decimals and drops trailing zeros, so whole numbers still read clean.
+ */
+export function preciseNum(n: number, maxDp = 4): string {
+  if (!Number.isFinite(n)) return '';
+  const rounded = Number(n.toFixed(maxDp));
+  const dp = (String(rounded).split('.')[1] ?? '').length;
+  return rounded.toLocaleString('en-IN', {
+    minimumFractionDigits: dp,
+    maximumFractionDigits: dp,
+  });
+}
+
+/** Full unrounded value, for tooltips where the exact figure must be available. */
+export function exactNum(n: number): string {
+  if (!Number.isFinite(n)) return '—';
+  return String(n);
+}
+
+/**
+ * Has an edited value actually moved off its source value? Absolute epsilons
+ * misjudge this across a model spanning single rupees to billions, so scale the
+ * tolerance to the magnitude being compared.
+ */
+export function differs(a: number, b: number): boolean {
+  return Math.abs(a - b) > Math.max(1e-9, Math.abs(b) * 1e-12);
+}

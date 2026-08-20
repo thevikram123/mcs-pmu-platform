@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import {
   Area,
   AreaChart,
@@ -93,7 +94,7 @@ function TipBox({
 const crTick = (v: number) => `₹${v.toFixed(0)}`;
 
 /** Stacked CAPEX / OPEX / Overhead across the six-year horizon. */
-export function CostOverTime({
+function CostOverTimeImpl({
   data,
   height = 300,
   type = 'area',
@@ -127,9 +128,10 @@ export function CostOverTime({
         <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />
         {type === 'area' ? (
           <>
-            <Area dataKey="CAPEX" stackId="1" stroke={SERIES.capex} fill="url(#g-capex)" />
-            <Area dataKey="OPEX" stackId="1" stroke={SERIES.opex} fill="url(#g-opex)" />
+            <Area isAnimationActive={false} dataKey="CAPEX" stackId="1" stroke={SERIES.capex} fill="url(#g-capex)" />
+            <Area isAnimationActive={false} dataKey="OPEX" stackId="1" stroke={SERIES.opex} fill="url(#g-opex)" />
             <Area
+              isAnimationActive={false}
               dataKey="Overhead"
               stackId="1"
               stroke={SERIES.overhead}
@@ -138,9 +140,9 @@ export function CostOverTime({
           </>
         ) : (
           <>
-            <Bar dataKey="CAPEX" stackId="1" fill={SERIES.capex} radius={[0, 0, 0, 0]} />
-            <Bar dataKey="OPEX" stackId="1" fill={SERIES.opex} />
-            <Bar dataKey="Overhead" stackId="1" fill={SERIES.overhead} radius={[5, 5, 0, 0]} />
+            <Bar isAnimationActive={false} dataKey="CAPEX" stackId="1" fill={SERIES.capex} radius={[0, 0, 0, 0]} />
+            <Bar isAnimationActive={false} dataKey="OPEX" stackId="1" fill={SERIES.opex} />
+            <Bar isAnimationActive={false} dataKey="Overhead" stackId="1" fill={SERIES.overhead} radius={[5, 5, 0, 0]} />
           </>
         )}
       </Chart>
@@ -149,7 +151,7 @@ export function CostOverTime({
 }
 
 /** Scenario against baseline, year by year. */
-export function CompareChart({
+function CompareChartImpl({
   data,
   height = 300,
 }: {
@@ -169,8 +171,9 @@ export function CompareChart({
         <YAxis {...axis} tickFormatter={crTick} width={52} />
         <Tooltip content={<TipBox />} cursor={{ fill: 'var(--surface-2)' }} />
         <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />
-        <Bar dataKey="Baseline" fill={SERIES.baseline} radius={[5, 5, 0, 0]} maxBarSize={38} />
+        <Bar isAnimationActive={false} dataKey="Baseline" fill={SERIES.baseline} radius={[5, 5, 0, 0]} maxBarSize={38} />
         <Line
+          isAnimationActive={false}
           dataKey="Scenario"
           stroke={SERIES.scenario}
           strokeWidth={2.5}
@@ -182,7 +185,7 @@ export function CompareChart({
 }
 
 /** Horizontal ranking bar — schedules, OEMs, categories. */
-export function RankBar({
+function RankBarImpl({
   data,
   height = 300,
   color,
@@ -199,7 +202,7 @@ export function RankBar({
         <XAxis type="number" {...axis} tickFormatter={crTick} />
         <YAxis type="category" dataKey="name" {...axis} width={150} interval={0} />
         <Tooltip content={<TipBox />} cursor={{ fill: 'var(--surface-2)' }} />
-        <Bar dataKey="Value" radius={[0, 5, 5, 0]} maxBarSize={20}>
+        <Bar isAnimationActive={false} dataKey="Value" radius={[0, 5, 5, 0]} maxBarSize={20}>
           {rows.map((r, i) => (
             <Cell key={r.name} fill={color?.(r.name, i) ?? PALETTE[i % PALETTE.length]} />
           ))}
@@ -209,7 +212,7 @@ export function RankBar({
   );
 }
 
-export function Donut({
+function DonutImpl({
   data,
   height = 260,
   colors = PALETTE,
@@ -223,6 +226,7 @@ export function Donut({
     <ResponsiveContainer width="100%" height={height}>
       <PieChart>
         <Pie
+          isAnimationActive={false}
           data={rows}
           dataKey="value"
           nameKey="name"
@@ -244,7 +248,7 @@ export function Donut({
 }
 
 /** Contribution of each lever to the change from baseline. */
-export function Waterfall({
+function WaterfallImpl({
   data,
   height = 280,
 }: {
@@ -260,7 +264,7 @@ export function Waterfall({
         <YAxis {...axis} tickFormatter={(v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}`} width={52} />
         <Tooltip content={<TipBox />} cursor={{ fill: 'var(--surface-2)' }} />
         <ReferenceLine y={0} stroke="var(--text-faint)" />
-        <Bar dataKey="Delta" radius={[4, 4, 0, 0]} maxBarSize={44}>
+        <Bar isAnimationActive={false} dataKey="Delta" radius={[4, 4, 0, 0]} maxBarSize={44}>
           {rows.map((r) => (
             <Cell key={r.name} fill={r.Delta >= 0 ? SERIES.up : SERIES.down} />
           ))}
@@ -269,3 +273,14 @@ export function Waterfall({
     </ResponsiveContainer>
   );
 }
+
+/*
+ * Recharts re-renders are the most expensive thing on a slider drag, so each
+ * chart is memoised on its props. Combined with animations off, moving a lever
+ * updates the figures on the same frame instead of a third of a second later.
+ */
+export const CostOverTime = memo(CostOverTimeImpl);
+export const CompareChart = memo(CompareChartImpl);
+export const RankBar = memo(RankBarImpl);
+export const Donut = memo(DonutImpl);
+export const Waterfall = memo(WaterfallImpl);

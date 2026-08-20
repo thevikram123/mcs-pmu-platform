@@ -1,11 +1,35 @@
 import { useMemo, useState } from 'react';
-import { Banner, Card, Chip, KpiTile, Money, SliderInput, Toggle } from '../components/ui';
+import { Banner, Card, Chip, Money, SliderInput, Toggle } from '../components/ui';
+import CostBlocks from '../components/CostBlocks';
+import HowTo from '../components/HowTo';
 import { CompareChart, Waterfall, RankBar } from '../components/charts';
 import { baseline, baselineResult, useResult } from '../model/useModel';
 import { computeScenario, DEFAULT_GLOBALS, emptyOverrides } from '../model/engine';
 import { crore, deltaCr, pct, signedPct } from '../model/format';
 import { useScenarios } from '../store/scenarios';
 import type { Globals, Overrides } from '../model/types';
+
+const RESULT_TABS = [
+  { value: 'forecast', label: 'Forecast', hint: 'Year-by-year total against the tender' },
+  { value: 'why', label: 'Why it moved', hint: 'Each active lever’s contribution to the change' },
+  { value: 'sensitivity', label: 'Sensitivity', hint: 'Impact of each lever applied alone to the tender' },
+  { value: 'table', label: 'Numbers', hint: 'The full year-by-year table for this scenario' },
+];
+
+/** Impact readout shown directly under each slider. */
+function Impact({ delta }: { delta: number }) {
+  if (Math.abs(delta) < 1) {
+    return <span className="faint">No effect at this setting</span>;
+  }
+  return (
+    <span
+      className="font-semibold"
+      style={{ color: delta > 0 ? 'var(--color-coral-500)' : 'var(--color-mint-600)' }}
+    >
+      {deltaCr(delta)} on the six-year total
+    </span>
+  );
+}
 
 /** Effect of a single lever, holding everything else at this scenario's setting. */
 function leverDelta(overrides: Overrides, key: keyof Globals, total: number): number {
@@ -24,6 +48,7 @@ export default function Simulator() {
   const active = useScenarios((s) => s.active());
   const { setGlobal, resetGlobal, setScheduleMul, resetAll } = useScenarios();
   const [tab, setTab] = useState('global');
+  const [view, setView] = useState('forecast');
 
   const g = r.globals;
   const set = <K extends keyof Globals>(k: K) => (v: Globals[K]) => setGlobal(k, v);
@@ -68,6 +93,23 @@ export default function Simulator() {
     ].sort((x, y) => y.exGst - x.exGst);
   }, [b.totals.exGst]);
 
+  /** What each individual lever is currently contributing. */
+  const impact = useMemo(() => {
+    const t = r.totals.exGst;
+    const keys: (keyof Globals)[] = [
+      'gstRate',
+      'inflationDelta',
+      'capexContingency',
+      'opexContingency',
+      'track2StartYear',
+      'overheadMode',
+      'capexPhasing',
+    ];
+    const out = {} as Record<keyof Globals, number>;
+    for (const k of keys) out[k] = k in overrides.globals ? leverDelta(overrides, k, t) : 0;
+    return out;
+  }, [overrides, r.totals.exGst]);
+
   const compareData = r.byYear.map((y, i) => ({
     year: y.year,
     baseline: b.byYear[i].exGst,
@@ -91,6 +133,22 @@ export default function Simulator() {
         }
       />
 
+      <HowTo
+        id="simulator"
+        purpose="Test what happens to the six-year cost if an assumption changes — tax, inflation, contingency, or when Track 2 goes live."
+        steps={[
+          { do: 'Drag a slider', then: 'every figure on the page updates as you drag' },
+          { do: 'Or type an exact value', then: 'in the box beside the slider, then press Enter' },
+          { do: 'Read the line under each slider', then: 'it states that lever’s own effect on the total' },
+          { do: 'Watch the three blocks above', then: 'they show the new CAPEX / OPEX / overhead split' },
+          { do: 'Check "What moved the number"', then: 'it attributes the change lever by lever' },
+          { do: 'Click ⟲ or Reset all', then: 'to return to the tendered figures' },
+        ]}
+        note="Nothing here is saved over the tender: the Baseline scenario always holds the original BOQ figures, and your changes go into a separate working scenario."
+      />
+
+      <CostBlocks result={r} baseline={b} showDelta />
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[380px_1fr]">
         {/* ------------------------------------------------------- controls */}
         <div className="flex flex-col gap-4">
@@ -112,7 +170,7 @@ export default function Simulator() {
               <div className="flex flex-col gap-5">
                 <SliderInput
                   label="GST rate"
-                  hint="Applied to every ex-GST figure. Source rate is 18%."
+                  hint={<>Applied to every ex-GST figure. Source rate is 18%. GST is not part of the ex-GST total, so this moves the incl-GST figure only.</>}
                   value={g.gstRate * 100}
                   baseline={DEFAULT_GLOBALS.gstRate * 100}
                   min={0}
@@ -125,7 +183,7 @@ export default function Simulator() {
                 />
                 <SliderInput
                   label="Additional inflation (per year)"
-                  hint="Compounds on top of the escalation already priced into the BOQ. Year 1 is unaffected; 0% reproduces the tender exactly."
+                  hint={<>Compounds on top of the escalation already priced into the BOQ. Year 1 is unaffected. <Impact delta={impact.inflationDelta} /></>}
                   value={g.inflationDelta * 100}
                   baseline={0}
                   min={-5}
@@ -138,6 +196,7 @@ export default function Simulator() {
                 />
                 <SliderInput
                   label="CAPEX contingency"
+                  hint={<Impact delta={impact.capexContingency} />}
                   value={g.capexContingency * 100}
                   baseline={0}
                   min={0}
@@ -150,6 +209,7 @@ export default function Simulator() {
                 />
                 <SliderInput
                   label="OPEX contingency"
+                  hint={<Impact delta={impact.opexContingency} />}
                   value={g.opexContingency * 100}
                   baseline={0}
                   min={0}
@@ -162,7 +222,7 @@ export default function Simulator() {
                 />
                 <SliderInput
                   label="Track 2 start year"
-                  hint="Schedules H2, I2, J2 and O2. Spend pushed past Year 6 falls outside the horizon, so slipping Track 2 lowers the six-year total."
+                  hint={<>Schedules H2, I2, J2 and O2. Spend pushed past Year 6 falls outside the horizon, so slipping Track 2 lowers the six-year total. <Impact delta={impact.track2StartYear} /></>}
                   value={g.track2StartYear}
                   baseline={DEFAULT_GLOBALS.track2StartYear}
                   min={1}
@@ -248,155 +308,139 @@ export default function Simulator() {
 
         {/* -------------------------------------------------------- results */}
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <KpiTile
-              label="Scenario total (excl. GST)"
-              value={crore(r.totals.exGst)}
-              sub={`tender ${crore(b.totals.exGst)}`}
-              delta={dTotal / b.totals.exGst}
-              icon={<span className="text-lg">Σ</span>}
-              tone="teal"
-            />
-            <KpiTile
-              label="Movement vs tender"
-              value={Math.abs(dTotal) < 1 ? '—' : deltaCr(dTotal)}
-              sub="excl. GST"
-              icon={<span className="text-lg">Δ</span>}
-              tone={dTotal > 0 ? 'coral' : dTotal < 0 ? 'mint' : 'slate'}
-            />
-            <KpiTile
-              label="Incl. GST"
-              value={crore(r.totals.inclGst)}
-              sub={Math.abs(dIncl) < 1 ? 'unchanged' : `${deltaCr(dIncl)} vs tender`}
-              delta={dIncl / b.totals.inclGst}
-              icon={<span className="text-lg">₹</span>}
-              tone="amber"
-            />
-          </div>
-
+          {/*
+            One result panel with tabs, not five stacked cards. The headline
+            movement stays pinned in the header so it is visible whichever view
+            is open.
+          */}
           <Card
-            title="Forecast — scenario against tender"
-            subtitle="Year-by-year total cost, excl. GST"
+            title={RESULT_TABS.find((t) => t.value === view)!.label}
+            subtitle={RESULT_TABS.find((t) => t.value === view)!.hint}
             right={
-              <Chip tone={Math.abs(dTotal) < 1 ? undefined : dTotal > 0 ? 'coral' : 'mint'}>
-                {Math.abs(dTotal) < 1 ? 'at tender' : signedPct(dTotal / b.totals.exGst)}
-              </Chip>
+              <div className="flex items-center gap-3">
+                <Chip tone={Math.abs(dTotal) < 1 ? undefined : dTotal > 0 ? 'coral' : 'mint'}>
+                  {Math.abs(dTotal) < 1
+                    ? 'at tender'
+                    : `${deltaCr(dTotal)} · ${signedPct(dTotal / b.totals.exGst)}`}
+                </Chip>
+                <Toggle value={view} onChange={setView} options={RESULT_TABS} />
+              </div>
             }
           >
-            <CompareChart data={compareData} height={286} />
-          </Card>
+            {view === 'forecast' && <CompareChart data={compareData} height={330} />}
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card
-              title="What moved the number"
-              subtitle="Each active lever's contribution to the change from tender"
-            >
-              {waterfall.length ? (
-                <Waterfall data={waterfall} height={268} />
+            {view === 'why' &&
+              (waterfall.length ? (
+                <Waterfall data={waterfall} height={330} />
               ) : (
-                <p className="faint py-16 text-center text-[13px]">
+                <p className="faint py-24 text-center text-[13px]">
                   Nothing changed yet — every control is at its tendered value.
                   <br />
-                  Move a slider to see its effect attributed here.
+                  Move a slider on the left to see its effect attributed here.
                 </p>
-              )}
-            </Card>
+              ))}
 
-            <Card
-              title="Sensitivity"
-              subtitle="Impact of each lever applied alone to the tendered baseline"
-            >
-              <RankBar data={tornado} height={268} color={() => '#43b0b0'} />
-            </Card>
-          </div>
+            {view === 'sensitivity' && (
+              <RankBar data={tornado} height={330} color={() => '#43b0b0'} />
+            )}
 
-          <Card title="Year-by-year detail" subtitle="This scenario" bodyClass="p-0">
-            <div className="scroll-x">
-              <table className="grid">
-                <thead>
-                  <tr>
-                    <th>Cost block</th>
-                    {r.byYear.map((y) => (
-                      <th key={y.year} className="r">
-                        Year {y.year}
-                      </th>
-                    ))}
-                    <th className="r">6-year total</th>
-                    <th className="r">vs tender</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(['capex', 'opex', 'overhead'] as const).map((k) => {
-                    const dev = r.totals[k] - b.totals[k];
-                    return (
-                      <tr key={k}>
-                        <td className="font-medium capitalize">{k}</td>
-                        {r.byYear.map((y) => (
-                          <td key={y.year} className="r muted">
-                            {y[k] === 0 ? '—' : crore(y[k])}
+            {view === 'table' && (
+              <div className="scroll-x">
+                <table className="grid">
+                  <thead>
+                    <tr>
+                      <th>Cost block</th>
+                      {r.byYear.map((y) => (
+                        <th key={y.year} className="r">
+                          Year {y.year}
+                        </th>
+                      ))}
+                      <th className="r">6-year total</th>
+                      <th className="r">vs tender</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(['capex', 'opex', 'overhead'] as const).map((k) => {
+                      const dev = r.totals[k] - b.totals[k];
+                      return (
+                        <tr key={k}>
+                          <td className="font-medium capitalize">{k}</td>
+                          {r.byYear.map((y) => (
+                            <td key={y.year} className="r muted">
+                              {y[k] === 0 ? '—' : crore(y[k])}
+                            </td>
+                          ))}
+                          <td className="r font-semibold">
+                            <Money value={r.totals[k]} />
                           </td>
-                        ))}
-                        <td className="r font-semibold">
-                          <Money value={r.totals[k]} />
+                          <td
+                            className="r font-semibold"
+                            style={{
+                              color:
+                                Math.abs(dev) < 1
+                                  ? 'var(--text-faint)'
+                                  : dev > 0
+                                    ? 'var(--color-coral-500)'
+                                    : 'var(--color-mint-600)',
+                            }}
+                          >
+                            {Math.abs(dev) < 1 ? '—' : crore(dev)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}>
+                      <td>Total excl. GST</td>
+                      {r.byYear.map((y) => (
+                        <td key={y.year} className="r">
+                          {crore(y.exGst)}
                         </td>
-                        <td
-                          className="r font-semibold"
-                          style={{
-                            color:
-                              Math.abs(dev) < 1
-                                ? 'var(--text-faint)'
-                                : dev > 0
-                                  ? 'var(--color-coral-500)'
-                                  : 'var(--color-mint-600)',
-                          }}
-                        >
-                          {Math.abs(dev) < 1 ? '—' : crore(dev)}
+                      ))}
+                      <td className="r">
+                        <Money value={r.totals.exGst} />
+                      </td>
+                      <td className="r">{Math.abs(dTotal) < 1 ? '—' : crore(dTotal)}</td>
+                    </tr>
+                    <tr>
+                      <td className="muted">GST at {pct(g.gstRate, 0)}</td>
+                      {r.byYear.map((y) => (
+                        <td key={y.year} className="r muted">
+                          {crore(y.gst)}
                         </td>
-                      </tr>
-                    );
-                  })}
-                  <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}>
-                    <td>Total excl. GST</td>
-                    {r.byYear.map((y) => (
-                      <td key={y.year} className="r">
-                        {crore(y.exGst)}
+                      ))}
+                      <td className="r font-semibold">
+                        <Money value={r.totals.gst} />
                       </td>
-                    ))}
-                    <td className="r">
-                      <Money value={r.totals.exGst} />
-                    </td>
-                    <td className="r">{Math.abs(dTotal) < 1 ? '—' : crore(dTotal)}</td>
-                  </tr>
-                  <tr>
-                    <td className="muted">GST at {pct(g.gstRate, 0)}</td>
-                    {r.byYear.map((y) => (
-                      <td key={y.year} className="r muted">
-                        {crore(y.gst)}
+                      <td className="r muted">
+                        {Math.abs(dIncl - dTotal) < 1 ? '—' : crore(r.totals.gst - b.totals.gst)}
                       </td>
-                    ))}
-                    <td className="r font-semibold">
-                      <Money value={r.totals.gst} />
-                    </td>
-                    <td className="r muted">
-                      {Math.abs(r.totals.gst - b.totals.gst) < 1
-                        ? '—'
-                        : crore(r.totals.gst - b.totals.gst)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                    </tr>
+                    <tr style={{ fontWeight: 700 }}>
+                      <td>Total incl. GST</td>
+                      {r.byYear.map((y) => (
+                        <td key={y.year} className="r">
+                          {crore(y.inclGst)}
+                        </td>
+                      ))}
+                      <td className="r">
+                        <Money value={r.totals.inclGst} />
+                      </td>
+                      <td className="r">{Math.abs(dIncl) < 1 ? '—' : crore(dIncl)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
 
           {changedSchedules.length > 0 && (
-            <Card title="Active schedule multipliers" subtitle="">
+            <Card title="Active schedule multipliers" subtitle="Click one to reset it">
               <div className="flex flex-wrap gap-2">
                 {changedSchedules.map(([id, v]) => (
                   <button
                     key={id}
                     className="chip hover:!border-[color:var(--accent)]"
                     onClick={() => setScheduleMul(id, 1)}
-                    title="Click to reset"
                   >
                     {id} × {v.toFixed(2)} ⟲
                   </button>

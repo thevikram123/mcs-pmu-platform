@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Banner, Card, Chip, KpiTile, Money } from '../components/ui';
+import { Banner, Card, Chip, Money } from '../components/ui';
+import CostBlocks from '../components/CostBlocks';
 import { CostOverTime } from '../components/charts';
 import { baseline, baselineResult, useResult } from '../model/useModel';
-import { crore, pct } from '../model/format';
+import { crore } from '../model/format';
 import { useScenarios, BASELINE_ID } from '../store/scenarios';
 
 const FACT_KEYS = [
@@ -11,7 +12,32 @@ const FACT_KEYS = [
   'Contract Signing Date (T)',
   'Track 1 Handover Target (T1)',
   'Track 2 Go-Live Target (T2)',
-  'Budget Baseline Source',
+];
+
+/* A first-time visitor gets an explicit route through the tool rather than six
+   equally-weighted nav items and no indication of which to open first. */
+const STEPS = [
+  {
+    n: 1,
+    to: '/overview',
+    title: 'See the breakdown',
+    body: 'Every schedule and where the money concentrates — by OEM, category, phase and track.',
+    cta: 'Open Cost Breakdown',
+  },
+  {
+    n: 2,
+    to: '/simulator',
+    title: 'Try a what-if',
+    body: 'Move GST, inflation, contingency or Track 2 timing. Figures update as you drag.',
+    cta: 'Open Simulator',
+  },
+  {
+    n: 3,
+    to: '/scenarios',
+    title: 'Export it',
+    body: 'Download the scenario as an Excel workbook or a PDF report for review.',
+    cta: 'Open Export',
+  },
 ];
 
 export default function Home() {
@@ -19,9 +45,6 @@ export default function Home() {
   const activeId = useScenarios((s) => s.activeId);
   const active = useScenarios((s) => s.active());
   const isBaseline = activeId === BASELINE_ID;
-  const b = baselineResult;
-
-  const d = (v: number, base: number) => (base === 0 ? 0 : (v - base) / base);
 
   return (
     <>
@@ -29,73 +52,61 @@ export default function Home() {
         title="MCS Phase III — Expense Platform"
         subtitle={`Six-year cost model · ${active.name}`}
         right={
-          <div className="flex items-center gap-2">
-            <Link to="/simulator" className="btn !border-white/25 !bg-white/12 !text-white">
-              Open simulator
-            </Link>
-            <Link to="/scenarios" className="btn !border-white/25 !bg-white/12 !text-white">
-              Export
-            </Link>
-          </div>
+          <Link to="/simulator" className="btn !border-white/25 !bg-white/12 !text-white">
+            Open simulator
+          </Link>
         }
       />
 
-      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <KpiTile
-          label="CAPEX (one-time)"
-          value={crore(r.totals.capex)}
-          sub={isBaseline ? '7 schedules · 161 items' : 'vs baseline'}
-          delta={isBaseline ? undefined : d(r.totals.capex, b.totals.capex)}
-          icon={<span className="text-lg">▦</span>}
-          tone="teal"
-        />
-        <KpiTile
-          label="OPEX (6 years)"
-          value={crore(r.totals.opex)}
-          sub={isBaseline ? '12 schedules · 217 items' : 'vs baseline'}
-          delta={isBaseline ? undefined : d(r.totals.opex, b.totals.opex)}
-          icon={<span className="text-lg">↻</span>}
-          tone="mint"
-        />
-        <KpiTile
-          label="Overhead"
-          value={crore(r.totals.overhead)}
-          sub={
-            r.globals.overheadMode === 'lock50cr' ? 'locked at ₹50 Cr' : 'bottom-up · 16 lines'
-          }
-          delta={isBaseline ? undefined : d(r.totals.overhead, b.totals.overhead)}
-          icon={<span className="text-lg">⌂</span>}
-          tone="violet"
-        />
-        <KpiTile
-          label="Total excl. GST"
-          value={crore(r.totals.exGst)}
-          sub={isBaseline ? 'as tendered' : 'vs baseline'}
-          delta={isBaseline ? undefined : d(r.totals.exGst, b.totals.exGst)}
-          icon={<span className="text-lg">Σ</span>}
-          tone="slate"
-        />
-        <KpiTile
-          label="Total incl. GST"
-          value={crore(r.totals.inclGst)}
-          sub={`GST at ${pct(r.globals.gstRate, 0)}`}
-          delta={isBaseline ? undefined : d(r.totals.inclGst, b.totals.inclGst)}
-          icon={<span className="text-lg">₹</span>}
-          tone="amber"
-        />
+      <p className="muted mb-5 max-w-3xl text-[13.5px] leading-relaxed">
+        The full CAPEX, OPEX and overhead cost of Mumbai City Surveillance Phase III over six
+        years, built from the tendered BOQ. Every figure below starts at its tendered value and
+        can be changed — by slider or by typing — to test a scenario.
+      </p>
+
+      <CostBlocks result={r} baseline={baselineResult} showDelta={!isBaseline} />
+
+      {/* --------------------------------------------------------- start here */}
+      <div className="mb-5">
+        <p className="faint mb-2.5 text-[11px] font-bold uppercase tracking-[0.14em]">
+          Start here
+        </p>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {STEPS.map((s) => (
+            <Link
+              key={s.n}
+              to={s.to}
+              className="card flex flex-col p-5 transition hover:-translate-y-0.5"
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className="grid size-7 shrink-0 place-items-center rounded-full text-[12.5px] font-bold text-white"
+                  style={{ background: 'var(--accent)' }}
+                >
+                  {s.n}
+                </span>
+                <p className="text-[14.5px] font-semibold">{s.title}</p>
+              </div>
+              <p className="muted mt-2.5 flex-1 text-[12.5px] leading-relaxed">{s.body}</p>
+              <p className="mt-3 text-[12.5px] font-semibold" style={{ color: 'var(--accent)' }}>
+                {s.cta} →
+              </p>
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card
           className="xl:col-span-2"
-          title="Cost over the six-year horizon"
-          subtitle="CAPEX recognised in Year 1 per the source cash-flow convention; OPEX and overhead recur"
+          title="Cost by year"
+          subtitle="CAPEX lands in Year 1 per the source cash-flow convention; OPEX and overhead recur"
           right={<Chip tone="teal">excl. GST</Chip>}
         >
-          <CostOverTime data={r.byYear} height={318} type="bar" />
+          <CostOverTime data={r.byYear} height={300} type="bar" />
         </Card>
 
-        <Card title="Key project facts" subtitle="From the Phase III JCR tracker">
+        <Card title="Contract facts" subtitle="From the Phase III JCR tracker">
           <dl className="flex flex-col gap-3.5">
             {FACT_KEYS.filter((k) => baseline.projectFacts[k]).map((k) => (
               <div key={k}>
@@ -107,47 +118,25 @@ export default function Home() {
             ))}
             <div className="mt-1 border-t pt-3.5">
               <dt className="faint text-[11px] font-semibold uppercase tracking-wider">
-                Unreconciled gap (TCV − this model, incl. GST)
+                Gap: TCV − this model (incl. GST)
               </dt>
-              <dd className="mt-0.5 text-[15px] font-bold">
+              <dd className="mt-0.5 text-[17px] font-bold">
                 <Money value={r.totals.tcvGap} />
               </dd>
               <p className="faint mt-1 text-[11.5px] leading-snug">
-                Carried forward from the source JCR — the tendered contract value exceeds the
-                priced BOQ. Tracked on the Overview page.
+                The tendered contract value exceeds the priced BOQ. Inherited from the source JCR,
+                which flags it as an open item.
               </p>
             </div>
           </dl>
         </Card>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {[
-          {
-            to: '/explorer',
-            title: 'Cost Explorer',
-            body: 'Drill from schedule to line item across 394 priced lines. Edit any quantity, rate or annual value.',
-          },
-          {
-            to: '/simulator',
-            title: 'Scenario Simulator',
-            body: 'Move GST, inflation, contingency and Track 2 timing. See the effect attributed lever by lever.',
-          },
-          {
-            to: '/jcr',
-            title: 'Job Cost Report',
-            body: 'Record committed and actual cost against each code. Estimated final cost and variance follow automatically.',
-          },
-        ].map((c) => (
-          <Link key={c.to} to={c.to} className="card p-5 transition hover:-translate-y-0.5">
-            <p className="text-[14px] font-semibold">{c.title}</p>
-            <p className="muted mt-1.5 text-[12.5px] leading-relaxed">{c.body}</p>
-            <p className="mt-3 text-[12.5px] font-semibold" style={{ color: 'var(--accent)' }}>
-              Open →
-            </p>
-          </Link>
-        ))}
-      </div>
+      <p className="faint mt-5 text-[11.5px] leading-relaxed">
+        At default settings this model reproduces the source workbooks exactly: CAPEX{' '}
+        {crore(baselineResult.totals.capex)}, OPEX {crore(baselineResult.totals.opex)}, overhead{' '}
+        {crore(baselineResult.totals.overhead)}. Sources: {baseline.meta.sources.join(', ')}.
+      </p>
     </>
   );
 }
