@@ -71,6 +71,41 @@ export default function Jcr() {
     },
   );
 
+  /**
+   * The source tracker's JCR Summary rolls up to CAPEX / OPEX / PROJECT TOTAL.
+   * A flat list of 22 codes hides that, so the table is sectioned the same way
+   * and each block carries its own subtotal.
+   */
+  const BLOCKS = [
+    { kind: 'capex' as const, label: 'CAPEX — one-time', tone: 'teal' as const },
+    { kind: 'opex' as const, label: 'OPEX — recurring, 6 years', tone: 'mint' as const },
+    { kind: 'overhead' as const, label: 'Overhead', tone: 'violet' as const },
+  ];
+  const kindOf = new Map(baseline.jcrCostCodes.map((c) => [c.code, c.kind]));
+  const sum = (list: typeof rows) =>
+    list.reduce(
+      (a, x) => ({
+        originalBudget: a.originalBudget + x.originalBudget,
+        approvedCos: a.approvedCos + x.approvedCos,
+        revisedBudget: a.revisedBudget + x.revisedBudget,
+        committed: a.committed + x.committed,
+        actual: a.actual + x.actual,
+        estToComplete: a.estToComplete + x.estToComplete,
+        estFinalCost: a.estFinalCost + x.estFinalCost,
+        variance: a.variance + x.variance,
+      }),
+      {
+        originalBudget: 0,
+        approvedCos: 0,
+        revisedBudget: 0,
+        committed: 0,
+        actual: 0,
+        estToComplete: 0,
+        estFinalCost: 0,
+        variance: 0,
+      },
+    );
+
   const filled = Object.keys(jcr.entries).length;
   const topVariance = rows
     .filter((x) => Math.abs(x.variance) > 1)
@@ -108,6 +143,42 @@ export default function Jcr() {
         ]}
         note="Green variance means under budget, red means over. Entries are saved in this browser only — use Scenarios → Download scenario JSON to share them."
       />
+
+      {/* The cost-block split first — a single grand total hid the OPEX figure
+          entirely, which is the number most reviews start from. */}
+      <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {BLOCKS.map((blk) => {
+          const t = sum(rows.filter((x) => kindOf.get(x.code) === blk.kind));
+          return (
+            <div key={blk.kind} className="card px-5 py-4">
+              <div className="flex items-center justify-between gap-2">
+                <Chip tone={blk.tone}>{blk.kind.toUpperCase()}</Chip>
+                <span className="faint text-[11.5px]">
+                  {pct(tot.revisedBudget ? t.revisedBudget / tot.revisedBudget : 0, 1)} of budget
+                </span>
+              </div>
+              <p className="tnum mt-2 text-[26px] font-bold leading-none">
+                {crore(t.revisedBudget)}
+              </p>
+              <p className="muted mt-1.5 text-[12px]">
+                {blk.label} · committed {crore(t.committed)} · actual {crore(t.actual)}
+              </p>
+              <div
+                className="mt-2.5 h-1.5 overflow-hidden rounded-full"
+                style={{ background: 'var(--border)' }}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${Math.min(100, t.revisedBudget ? (t.actual / t.revisedBudget) * 100 : 0)}%`,
+                    background: 'var(--color-mint-500)',
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <KpiTile
@@ -192,8 +263,27 @@ export default function Jcr() {
                   <th className="r">Variance</th>
                 </tr>
               </thead>
-              <tbody>
-                {rows.map((x) => {
+              {BLOCKS.map((blk) => {
+                const group = rows.filter((x) => kindOf.get(x.code) === blk.kind);
+                if (!group.length) return null;
+                const t = sum(group);
+                return (
+                  <tbody key={blk.kind}>
+                    <tr>
+                      <td colSpan={12} style={{ background: 'var(--surface-2)', padding: '7px 12px' }}>
+                        <span className="flex items-center gap-2">
+                          <Chip tone={blk.tone}>{blk.kind.toUpperCase()}</Chip>
+                          <span className="text-[12px] font-semibold">{blk.label}</span>
+                          <span className="faint text-[11.5px]">
+                            {group.length} cost code{group.length === 1 ? '' : 's'}
+                          </span>
+                          <span className="tnum ml-auto text-[13px] font-bold">
+                            {crore(t.revisedBudget)}
+                          </span>
+                        </span>
+                      </td>
+                    </tr>
+                {group.map((x) => {
                   const e = jcr.entries[x.code] ?? EMPTY_ENTRY;
                   return (
                     <tr key={x.code}>
@@ -256,10 +346,41 @@ export default function Jcr() {
                     </tr>
                   );
                 })}
-              </tbody>
+                    <tr style={{ fontWeight: 650 }}>
+                      <td colSpan={2}>{blk.label} — subtotal</td>
+                      <td className="r">{crore(t.originalBudget)}</td>
+                      <td className="r">{t.approvedCos === 0 ? '—' : crore(t.approvedCos)}</td>
+                      <td className="r">{crore(t.revisedBudget)}</td>
+                      <td className="r">{crore(t.committed)}</td>
+                      <td className="r">
+                        {pct(t.revisedBudget ? t.committed / t.revisedBudget : 0)}
+                      </td>
+                      <td className="r">{crore(t.actual)}</td>
+                      <td className="r">
+                        {pct(t.revisedBudget ? t.actual / t.revisedBudget : 0)}
+                      </td>
+                      <td className="r">{crore(t.estToComplete)}</td>
+                      <td className="r">{crore(t.estFinalCost)}</td>
+                      <td
+                        className="r"
+                        style={{
+                          color:
+                            Math.abs(t.variance) < 1
+                              ? 'var(--text-faint)'
+                              : t.variance < 0
+                                ? 'var(--color-coral-500)'
+                                : 'var(--color-mint-600)',
+                        }}
+                      >
+                        {Math.abs(t.variance) < 1 ? '—' : crore(t.variance)}
+                      </td>
+                    </tr>
+                  </tbody>
+                );
+              })}
               <tfoot>
                 <tr style={{ background: 'var(--surface-2)', fontWeight: 700 }}>
-                  <td colSpan={2}>TOTAL</td>
+                  <td colSpan={2}>PROJECT TOTAL</td>
                   <td className="r">{crore(tot.originalBudget)}</td>
                   <td className="r">{crore(tot.approvedCos)}</td>
                   <td className="r">{crore(tot.revisedBudget)}</td>
