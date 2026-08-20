@@ -1,0 +1,33 @@
+{
+  "name": "mcs-pmu-platform",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "extract": "python tools/extract_baseline.py"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.3",
+    "recharts": "^2.15.4",
+    "zustand": "^5.0.8",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.9",
+    "vitest": "^3.2.4",
+    "tailwindcss": "^4.1.14",
+    "@tailwindcss/vite": "^4.1.14"
+  }
+}

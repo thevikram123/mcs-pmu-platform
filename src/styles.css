@@ -1,0 +1,299 @@
+@import 'tailwindcss';
+
+/*
+  Design language taken from the DataPharma financial dashboard reference in
+  UI/: teal primary, fixed left sidebar of nav pills, wave-banner page headers,
+  white rounded cards with hairline borders, KPI tiles built as a colour-coded
+  icon square beside a stacked label/value.
+*/
+
+@theme {
+  --color-teal-50: #eefaf9;
+  --color-teal-100: #d3f1ef;
+  --color-teal-200: #a9e3e0;
+  --color-teal-300: #74cdcb;
+  --color-teal-400: #43b0b0;
+  --color-teal-500: #2b9695;
+  --color-teal-600: #1f7a7b;
+  --color-teal-700: #1c6162;
+  --color-teal-800: #1b4e50;
+  --color-teal-900: #1a4143;
+  --color-teal-950: #0a2628;
+
+  --color-mint-400: #34d399;
+  --color-mint-500: #10b981;
+  --color-mint-600: #059669;
+
+  --color-coral-400: #fb7185;
+  --color-coral-500: #f43f5e;
+  --color-coral-600: #e11d48;
+
+  --color-amber-450: #f59e0b;
+  --color-violet-450: #8b5cf6;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #fafbfc;
+  --border: #e3e8ec;
+  --text: #16232b;
+  --text-muted: #64757f;
+  --text-faint: #93a3ac;
+  --accent: #1f7a7b;
+  --accent-soft: #eefaf9;
+  --shadow: 0 1px 2px rgb(16 32 40 / 0.05), 0 4px 14px -6px rgb(16 32 40 / 0.09);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #0d1618;
+  --surface: #131f22;
+  --surface-2: #16252a;
+  --border: #24373c;
+  --text: #e6eef0;
+  --text-muted: #93a9ae;
+  --text-faint: #6a8087;
+  --accent: #43b0b0;
+  --accent-soft: #16323300;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 16px -6px rgb(0 0 0 / 0.55);
+  color-scheme: dark;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1, 'cv05' 1;
+}
+
+/* Numeric columns line up only with tabular figures. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.card-head {
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+.faint {
+  color: var(--text-faint);
+}
+
+/* Page banner: layered diagonal strokes over the teal field, echoing the
+   reference deck's header artwork. */
+.banner {
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  background: linear-gradient(105deg, #1c6162 0%, #1f7a7b 45%, #2b9695 100%);
+}
+.banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+      68deg,
+      rgb(255 255 255 / 0.07) 0px,
+      rgb(255 255 255 / 0.07) 1px,
+      transparent 1px,
+      transparent 9px
+    ),
+    radial-gradient(120% 180% at 88% -40%, rgb(255 255 255 / 0.16) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.navpill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 11px;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+.navpill:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.navpill[data-active='true'] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 650;
+  box-shadow: var(--shadow);
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  outline: none;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2.5px solid var(--surface);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.28);
+  cursor: grab;
+}
+input[type='range']::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+input[type='range']::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2.5px solid var(--surface);
+  cursor: grab;
+}
+
+.inp {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 9px;
+  font-size: 13px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+}
+.inp:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-radius: 9px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.13s ease, border-color 0.13s ease;
+}
+.btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  background: var(--accent);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+table.grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+table.grid th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  background: var(--surface-2);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+table.grid td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+table.grid tbody tr:hover {
+  background: var(--surface-2);
+}
+table.grid .r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.scroll-x {
+  overflow-x: auto;
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+  border: 3px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-faint);
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
