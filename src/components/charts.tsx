@@ -93,7 +93,21 @@ function TipBox({
 
 const crTick = (v: number) => `₹${v.toFixed(0)}`;
 
-/** Stacked CAPEX / OPEX / Overhead across the six-year horizon. */
+/**
+ * Stacked CAPEX / OPEX / Overhead across the six-year horizon.
+ *
+ * The series are direct children of the chart, never wrapped in a fragment:
+ * Recharts collects its children by inspecting element types and does not
+ * traverse into fragments, so `<><Bar/><Bar/></>` renders an empty plot — grid
+ * and X axis but no bars, and no Y axis either because nothing supplies a
+ * numeric domain.
+ */
+const BLOCKS = [
+  { key: 'CAPEX', color: SERIES.capex, gradient: 'url(#g-capex)' },
+  { key: 'OPEX', color: SERIES.opex, gradient: 'url(#g-opex)' },
+  { key: 'Overhead', color: SERIES.overhead, gradient: 'url(#g-overhead)' },
+] as const;
+
 function CostOverTimeImpl({
   data,
   height = 300,
@@ -109,43 +123,63 @@ function CostOverTimeImpl({
     OPEX: toCr(d.opex),
     Overhead: toCr(d.overhead),
   }));
-  const Chart = type === 'area' ? AreaChart : BarChart;
+
+  const gradients = (
+    <defs>
+      {(['capex', 'opex', 'overhead'] as const).map((k) => (
+        <linearGradient key={k} id={`g-${k}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={SERIES[k]} stopOpacity={0.75} />
+          <stop offset="100%" stopColor={SERIES[k]} stopOpacity={0.12} />
+        </linearGradient>
+      ))}
+    </defs>
+  );
+
+  if (type === 'bar') {
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+          {gradients}
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+          <XAxis dataKey="name" {...axis} />
+          <YAxis {...axis} tickFormatter={crTick} width={52} />
+          <Tooltip content={<TipBox total />} cursor={{ fill: 'var(--surface-2)' }} />
+          <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />
+          {BLOCKS.map((b, i) => (
+            <Bar
+              key={b.key}
+              isAnimationActive={false}
+              dataKey={b.key}
+              stackId="1"
+              fill={b.color}
+              radius={i === BLOCKS.length - 1 ? [5, 5, 0, 0] : [0, 0, 0, 0]}
+            />
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <Chart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
-        <defs>
-          {(['capex', 'opex', 'overhead'] as const).map((k) => (
-            <linearGradient key={k} id={`g-${k}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={SERIES[k]} stopOpacity={0.75} />
-              <stop offset="100%" stopColor={SERIES[k]} stopOpacity={0.12} />
-            </linearGradient>
-          ))}
-        </defs>
-        {grid}
+      <AreaChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+        {gradients}
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
         <XAxis dataKey="name" {...axis} />
         <YAxis {...axis} tickFormatter={crTick} width={52} />
         <Tooltip content={<TipBox total />} cursor={{ fill: 'var(--surface-2)' }} />
         <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />
-        {type === 'area' ? (
-          <>
-            <Area isAnimationActive={false} dataKey="CAPEX" stackId="1" stroke={SERIES.capex} fill="url(#g-capex)" />
-            <Area isAnimationActive={false} dataKey="OPEX" stackId="1" stroke={SERIES.opex} fill="url(#g-opex)" />
-            <Area
-              isAnimationActive={false}
-              dataKey="Overhead"
-              stackId="1"
-              stroke={SERIES.overhead}
-              fill="url(#g-overhead)"
-            />
-          </>
-        ) : (
-          <>
-            <Bar isAnimationActive={false} dataKey="CAPEX" stackId="1" fill={SERIES.capex} radius={[0, 0, 0, 0]} />
-            <Bar isAnimationActive={false} dataKey="OPEX" stackId="1" fill={SERIES.opex} />
-            <Bar isAnimationActive={false} dataKey="Overhead" stackId="1" fill={SERIES.overhead} radius={[5, 5, 0, 0]} />
-          </>
-        )}
-      </Chart>
+        {BLOCKS.map((b) => (
+          <Area
+            key={b.key}
+            isAnimationActive={false}
+            dataKey={b.key}
+            stackId="1"
+            stroke={b.color}
+            fill={b.gradient}
+          />
+        ))}
+      </AreaChart>
     </ResponsiveContainer>
   );
 }

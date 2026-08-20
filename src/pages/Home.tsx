@@ -1,18 +1,10 @@
 import { Link } from 'react-router-dom';
-import { Banner, Card, Chip, Money } from '../components/ui';
+import { Banner, Card, Chip } from '../components/ui';
 import CostBlocks from '../components/CostBlocks';
 import { CostOverTime } from '../components/charts';
 import { baseline, baselineResult, useResult } from '../model/useModel';
 import { crore } from '../model/format';
 import { useScenarios, BASELINE_ID } from '../store/scenarios';
-
-const FACT_KEYS = [
-  'Total Contract Value (TCV)',
-  'Performance Bank Guarantee (PBG)',
-  'Contract Signing Date (T)',
-  'Track 1 Handover Target (T1)',
-  'Track 2 Go-Live Target (T2)',
-];
 
 /* A first-time visitor gets an explicit route through the tool rather than six
    equally-weighted nav items and no indication of which to open first. */
@@ -96,41 +88,13 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card
-          className="xl:col-span-2"
-          title="Cost by year"
-          subtitle="CAPEX lands in Year 1 per the source cash-flow convention; OPEX and overhead recur"
-          right={<Chip tone="teal">excl. GST</Chip>}
-        >
-          <CostOverTime data={r.byYear} height={300} type="bar" />
-        </Card>
-
-        <Card title="Contract facts" subtitle="From the Phase III JCR tracker">
-          <dl className="flex flex-col gap-3.5">
-            {FACT_KEYS.filter((k) => baseline.projectFacts[k]).map((k) => (
-              <div key={k}>
-                <dt className="faint text-[11px] font-semibold uppercase tracking-wider">{k}</dt>
-                <dd className="mt-0.5 text-[13px] font-medium leading-snug">
-                  {baseline.projectFacts[k]}
-                </dd>
-              </div>
-            ))}
-            <div className="mt-1 border-t pt-3.5">
-              <dt className="faint text-[11px] font-semibold uppercase tracking-wider">
-                Gap: TCV − this model (incl. GST)
-              </dt>
-              <dd className="mt-0.5 text-[17px] font-bold">
-                <Money value={r.totals.tcvGap} />
-              </dd>
-              <p className="faint mt-1 text-[11.5px] leading-snug">
-                The tendered contract value exceeds the priced BOQ. Inherited from the source JCR,
-                which flags it as an open item.
-              </p>
-            </div>
-          </dl>
-        </Card>
-      </div>
+      <Card
+        title="Cost by year"
+        subtitle="CAPEX lands in Year 1 per the source cash-flow convention; OPEX and overhead recur"
+        right={<Chip tone="teal">excl. GST</Chip>}
+      >
+        <CostOverTime data={r.byYear} height={320} type="bar" />
+      </Card>
 
       <p className="faint mt-5 text-[11.5px] leading-relaxed">
         At default settings this model reproduces the source workbooks exactly: CAPEX{' '}

@@ -7,5 +7,5 @@ export default defineConfig({
   base: '/mcs-pmu-platform/',
   plugins: [react(), tailwindcss()],
   build: { outDir: 'dist', sourcemap: false, chunkSizeWarningLimit: 1200 },
-  test: { environment: 'node', include: ['src/**/*.test.ts'] },
+  test: { environment: 'node', include: ['src/**/*.test.ts', 'src/**/*.test.tsx'] },
 });
