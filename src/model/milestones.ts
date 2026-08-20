@@ -217,9 +217,43 @@ export interface DerivedMilestone extends PaymentMilestone {
   status: MilestoneStatus;
   /** True when the date depends on the settable T4 assumption rather than a contractual anchor. */
   fromT4: boolean;
+  /** What the schedule says, before any human judgement. */
+  derivedStatus: DerivedStatus;
+  statusModified: boolean;
 }
 
-export type MilestoneStatus = 'Paid' | 'Due' | 'Upcoming' | 'Undated';
+/**
+ * Status has two layers. Where nobody has said otherwise it is derived from the
+ * date against the as-of date, so the schedule is honest on day one. As soon as
+ * someone records where a milestone actually is, that choice wins and is marked
+ * as set by hand.
+ */
+export type DerivedStatus = 'Due' | 'Upcoming' | 'Undated';
+
+export type SetStatus =
+  | 'Not started'
+  | 'In progress'
+  | 'Submitted for acceptance'
+  | 'Accepted'
+  | 'Invoiced'
+  | 'Paid'
+  | 'On hold';
+
+export type MilestoneStatus = DerivedStatus | SetStatus;
+
+/** Offered in the dropdown, in the order work actually moves through them. */
+export const SETTABLE_STATUSES: SetStatus[] = [
+  'Not started',
+  'In progress',
+  'Submitted for acceptance',
+  'Accepted',
+  'Invoiced',
+  'Paid',
+  'On hold',
+];
+
+/** Statuses that mean the money has actually been received. */
+export const PAID_STATUSES: MilestoneStatus[] = ['Paid'];
 
 /**
  * The complete anchor table.
@@ -246,7 +280,11 @@ export function buildAnchors(
 
 export function deriveMilestones(
   data: MilestoneData,
-  overrides: { dates: Record<string, string>; paid: Record<string, boolean>; t4?: string },
+  overrides: {
+    dates: Record<string, string>;
+    status: Record<string, SetStatus>;
+    t4?: string;
+  },
   asOf: string,
 ): DerivedMilestone[] {
   const t4 = overrides.t4 ?? data.assumedT4;
@@ -271,6 +309,8 @@ export function deriveMilestones(
       basis: override ? 'manually set' : derived.basis,
       dateModified: override != null && override !== derived.date,
       fromT4: /T[456]/.test(m.timeline ?? ''),
+      derivedStatus: 'Upcoming' as DerivedStatus,
+      statusModified: overrides.status[m.id] != null,
       cumulativePct: 0,
       cumulativeAmount: 0,
       poItems: [] as PoItem[],
@@ -286,20 +326,23 @@ export function deriveMilestones(
     amt += r.amountInclGst ?? 0;
     r.cumulativePct = pct;
     r.cumulativeAmount = amt;
-    r.status = !r.date
-      ? 'Undated'
-      : overrides.paid[r.id]
-        ? 'Paid'
-        : r.date <= asOf
-          ? 'Due'
-          : 'Upcoming';
+    r.derivedStatus = !r.date ? 'Undated' : r.date <= asOf ? 'Due' : 'Upcoming';
+    r.status = overrides.status[r.id] ?? r.derivedStatus;
   }
   return rows;
 }
 
 export const STATUS_TONE: Record<MilestoneStatus, string> = {
-  Paid: '#10b981',
+  // derived
   Due: '#f43f5e',
   Upcoming: '#43b0b0',
   Undated: '#94a3b8',
+  // set by hand
+  'Not started': '#94a3b8',
+  'In progress': '#f59e0b',
+  'Submitted for acceptance': '#8b5cf6',
+  Accepted: '#0ea5e9',
+  Invoiced: '#6366f1',
+  Paid: '#10b981',
+  'On hold': '#e11d48',
 };

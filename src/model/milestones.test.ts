@@ -13,9 +13,11 @@ import {
   deriveDate,
   deriveMilestones,
   milestones as data,
+  SETTABLE_STATUSES,
+  STATUS_TONE,
 } from './milestones';
 
-const NONE = { dates: {}, paid: {} };
+const NONE = { dates: {}, status: {} };
 const AS_OF = '2026-08-20';
 const anchors = () => buildAnchors(data, data.assumedT4);
 
@@ -138,10 +140,27 @@ describe('derived milestones', () => {
     expect(m28.sourceDate).toBe(anchors().T5);
   });
 
-  it('classifies status against the as-of date', () => {
-    const r = deriveMilestones(data, { ...NONE, paid: { M2: true } }, AS_OF);
-    expect(r.find((x) => x.id === 'M2')!.status).toBe('Paid');
-    expect(r.find((x) => x.id === 'M1')!.status).toBe('Due'); // 12 May 2026, past
-    expect(r.find((x) => x.id === 'M26')!.status).toBe('Upcoming'); // 2032
+  it('derives status from the date when nobody has set one', () => {
+    expect(rows.find((x) => x.id === 'M1')!.status).toBe('Due'); // 12 May 2026, past
+    expect(rows.find((x) => x.id === 'M26')!.status).toBe('Upcoming'); // 2032
+    expect(rows.every((x) => !x.statusModified)).toBe(true);
+  });
+
+  it('lets a recorded status override the derived one', () => {
+    const r = deriveMilestones(data, { ...NONE, status: { M2: 'Invoiced' } }, AS_OF);
+    const m2 = r.find((x) => x.id === 'M2')!;
+    expect(m2.status).toBe('Invoiced');
+    expect(m2.statusModified).toBe(true);
+    // the schedule's own view is preserved underneath
+    expect(m2.derivedStatus).toBe('Due');
+    // and other milestones are untouched
+    expect(r.find((x) => x.id === 'M1')!.statusModified).toBe(false);
+  });
+
+  it('every settable status has a colour', () => {
+    for (const s of SETTABLE_STATUSES) expect(STATUS_TONE[s]).toMatch(/^#[0-9a-f]{6}$/i);
+    for (const s of ['Due', 'Upcoming', 'Undated'] as const) {
+      expect(STATUS_TONE[s]).toMatch(/^#[0-9a-f]{6}$/i);
+    }
   });
 });

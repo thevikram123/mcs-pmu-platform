@@ -8,8 +8,10 @@ import {
   deriveMilestones,
   milestones as data,
   PO_STATUSES,
+  SETTABLE_STATUSES,
   STATUS_TONE,
   type DerivedMilestone,
+  type SetStatus,
 } from '../model/milestones';
 import { crore, pct } from '../model/format';
 import { useMilestones } from '../store/milestones';
@@ -40,14 +42,15 @@ export default function Milestones() {
     () =>
       deriveMilestones(
         data,
-        { dates: store.dates, paid: store.paid, t4: store.t4 ?? undefined },
+        { dates: store.dates, status: store.status, t4: store.t4 ?? undefined },
         store.asOf,
       ),
-    [store.dates, store.paid, store.t4, store.asOf],
+    [store.dates, store.status, store.t4, store.asOf],
   );
 
   const total = data.checksums.paymentTotalInclGst;
   const paidAmt = rows.filter((r) => r.status === 'Paid').reduce((a, r) => a + (r.amountInclGst ?? 0), 0);
+  const statusesSet = rows.filter((r) => r.statusModified).length;
   const dueAmt = rows.filter((r) => r.status === 'Due').reduce((a, r) => a + (r.amountInclGst ?? 0), 0);
   const fromT4 = rows.filter((r) => r.fromT4);
   const t4 = store.t4 ?? data.assumedT4;
@@ -114,10 +117,10 @@ export default function Milestones() {
           { do: 'Read the timeline', then: 'each dot is a payment; size is its value, colour is its status' },
           { do: 'Click a dot', then: 'to see the milestone, its amount and its deliverable' },
           { do: 'Open Payment schedule', then: 'and type a date to override the contractual one' },
-          { do: 'Tick Paid', then: 'once a milestone has actually been invoiced and settled' },
+          { do: 'Set a status', then: 'from Not started through to Paid — it overrides the automatic one' },
           { do: 'Open Purchase orders', then: 'to set PO status and target dates per line item' },
         ]}
-        note="Dates derived from the MSA anchors are the contractual position. Anything you type is shown as modified and never overwrites the contractual date — ⟲ puts it back."
+        note="Status is worked out from the date until you set one; choosing a value records where the milestone actually is and the automatic reading is kept underneath. Dates behave the same way — what you type is marked modified and never overwrites the contractual date."
       />
 
       <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -176,6 +179,9 @@ export default function Milestones() {
                 {modifiedDates} date{modifiedDates === 1 ? '' : 's'} modified ⟲
               </button>
             )}
+            {statusesSet > 0 && (
+              <span className="chip">{statusesSet} status set</span>
+            )}
             <Toggle value={tab} onChange={setTab} options={TABS} />
           </div>
         }
@@ -192,7 +198,7 @@ export default function Milestones() {
               <PaymentCurve data={curve} height={280} />
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
-              {(['Paid', 'Due', 'Upcoming', 'Undated'] as const).map((s) => (
+              {(['Due', 'Upcoming', ...SETTABLE_STATUSES] as const).map((s) => (
                 <span key={s} className="flex items-center gap-1.5 text-[12px]">
                   <i className="size-2.5 rounded-full" style={{ background: STATUS_TONE[s] }} />
                   <span className="muted">{s}</span>
@@ -219,7 +225,6 @@ export default function Milestones() {
                   <th className="r">Cumulative</th>
                   <th>Date</th>
                   <th>Status</th>
-                  <th />
                 </tr>
               </thead>
               <tbody>
@@ -288,20 +293,40 @@ export default function Milestones() {
                       )}
                     </td>
                     <td>
-                      <span
-                        className="rounded px-1.5 py-0.5 text-[11px] font-bold text-white"
-                        style={{ background: STATUS_TONE[m.status] }}
-                      >
-                        {m.status}
-                      </span>
-                    </td>
-                    <td className="r">
-                      <input
-                        type="checkbox"
-                        checked={!!store.paid[m.id]}
-                        onChange={() => store.togglePaid(m.id)}
-                        title="Mark as paid"
-                      />
+                      <div className="flex items-center gap-1.5">
+                        <i
+                          className="size-2.5 shrink-0 rounded-full"
+                          style={{ background: STATUS_TONE[m.status] }}
+                        />
+                        <select
+                          className="inp !w-[168px] !py-1"
+                          style={
+                            m.statusModified
+                              ? {
+                                  borderColor: STATUS_TONE[m.status],
+                                  color: STATUS_TONE[m.status],
+                                  fontWeight: 600,
+                                }
+                              : undefined
+                          }
+                          value={m.statusModified ? m.status : ''}
+                          title={
+                            m.statusModified
+                              ? `Set by hand. The schedule says ${m.derivedStatus}.`
+                              : `Derived from the date — ${m.derivedStatus}`
+                          }
+                          onChange={(e) =>
+                            store.setStatus(m.id, (e.target.value || null) as SetStatus | null)
+                          }
+                        >
+                          <option value="">{m.derivedStatus} (auto)</option>
+                          {SETTABLE_STATUSES.map((st) => (
+                            <option key={st} value={st}>
+                              {st}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -313,7 +338,7 @@ export default function Milestones() {
                     <Money value={total} />
                   </td>
                   <td className="r">{pct(data.checksums.paymentPctTotal, 1)}</td>
-                  <td colSpan={3} />
+                  <td colSpan={2} />
                 </tr>
               </tfoot>
             </table>

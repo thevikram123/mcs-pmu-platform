@@ -9,6 +9,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import type { SetStatus } from '../model/milestones';
 
 interface MilestoneState {
   asOf: string;
@@ -17,8 +18,8 @@ interface MilestoneState {
   t4: string | null;
   /** milestone id -> ISO date the user set by hand */
   dates: Record<string, string>;
-  /** milestone id -> marked as paid */
-  paid: Record<string, boolean>;
+  /** milestone id -> status recorded by hand; absent means "use the derived one" */
+  status: Record<string, SetStatus>;
   /** PO item key -> status the user set */
   poStatus: Record<string, string>;
   /** PO item key -> ISO date the user set */
@@ -28,7 +29,7 @@ interface MilestoneState {
   setAsOf: (d: string) => void;
   setT4: (iso: string | null) => void;
   setDate: (id: string, iso: string | null) => void;
-  togglePaid: (id: string) => void;
+  setStatus: (id: string, status: SetStatus | null) => void;
   setPoStatus: (key: string, status: string | null) => void;
   setPoDate: (key: string, iso: string | null) => void;
   setNote: (id: string, note: string) => void;
@@ -49,7 +50,7 @@ export const useMilestones = create<MilestoneState>()(
       asOf: new Date().toISOString().slice(0, 10),
       t4: null,
       dates: {},
-      paid: {},
+      status: {},
       poStatus: {},
       poDates: {},
       notes: {},
@@ -61,8 +62,8 @@ export const useMilestones = create<MilestoneState>()(
       setDate: (id, iso) =>
         set((s) => ({ dates: iso ? { ...s.dates, [id]: iso } : drop(s.dates, id) })),
 
-      togglePaid: (id) =>
-        set((s) => (s.paid[id] ? { paid: drop(s.paid, id) } : { paid: { ...s.paid, [id]: true } })),
+      setStatus: (id, status) =>
+        set((s) => ({ status: status ? { ...s.status, [id]: status } : drop(s.status, id) })),
 
       setPoStatus: (key, status) =>
         set((s) => ({
@@ -79,9 +80,10 @@ export const useMilestones = create<MilestoneState>()(
         set((s) => ({ notes: note ? { ...s.notes, [id]: note } : drop(s.notes, id) })),
 
       resetDates: () => set({ dates: {} }),
-      resetAll: () => set({ t4: null, dates: {}, paid: {}, poStatus: {}, poDates: {}, notes: {} }),
+      resetAll: () =>
+        set({ t4: null, dates: {}, status: {}, poStatus: {}, poDates: {}, notes: {} }),
       replaceAll: (d) => set((s) => ({ ...s, ...d })),
     }),
-    { name: 'mcs.milestones', version: 1 },
+    { name: 'mcs.milestones', version: 2 },
   ),
 );
