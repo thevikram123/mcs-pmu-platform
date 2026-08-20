@@ -34,9 +34,12 @@ const GROUPS = [
     ],
   },
   {
-    label: '3 · What was spent',
+    label: '3 · Delivery & spend',
     short: '3',
-    items: [{ to: '/jcr', label: 'Job Cost Report', icon: '✓' }],
+    items: [
+      { to: '/milestones', label: 'Milestone Tracker', icon: '◷' },
+      { to: '/jcr', label: 'Job Cost Report', icon: '✓' },
+    ],
   },
 ];
 

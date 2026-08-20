@@ -318,3 +318,58 @@ export const CompareChart = memo(CompareChartImpl);
 export const RankBar = memo(RankBarImpl);
 export const Donut = memo(DonutImpl);
 export const Waterfall = memo(WaterfallImpl);
+
+/* ------------------------------------------------------- payment S-curve */
+
+/**
+ * Cumulative contract value released over time.
+ *
+ * Series are direct children — see the note on CostOverTimeImpl for why a
+ * fragment here would silently render an empty plot.
+ */
+function PaymentCurveImpl({
+  data,
+  height = 300,
+}: {
+  data: { date: string; label: string; cumulative: number; event: number }[];
+  height?: number;
+}) {
+  const rows = data.map((d) => ({
+    name: d.label,
+    Cumulative: toCr(d.cumulative),
+    'This milestone': toCr(d.event),
+  }));
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <ComposedChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
+        <defs>
+          <linearGradient id="g-cum" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={SERIES.capex} stopOpacity={0.5} />
+            <stop offset="100%" stopColor={SERIES.capex} stopOpacity={0.05} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+        <XAxis dataKey="name" {...axis} interval="preserveStartEnd" minTickGap={18} />
+        <YAxis {...axis} tickFormatter={crTick} width={56} />
+        <Tooltip content={<TipBox />} cursor={{ fill: 'var(--surface-2)' }} />
+        <Legend iconType="circle" wrapperStyle={{ fontSize: 12, paddingTop: 6 }} />
+        <Bar
+          isAnimationActive={false}
+          dataKey="This milestone"
+          fill={SERIES.opex}
+          maxBarSize={26}
+          radius={[4, 4, 0, 0]}
+        />
+        <Area
+          isAnimationActive={false}
+          dataKey="Cumulative"
+          stroke={SERIES.capex}
+          strokeWidth={2.5}
+          fill="url(#g-cum)"
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  );
+}
+
+export const PaymentCurve = memo(PaymentCurveImpl);

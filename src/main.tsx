@@ -11,6 +11,7 @@ import Overview from './pages/Overview';
 import Explorer from './pages/Explorer';
 import Simulator from './pages/Simulator';
 import Jcr from './pages/Jcr';
+import Milestones from './pages/Milestones';
 import Scenarios from './pages/Scenarios';
 
 function Guard({ children }: { children: React.ReactNode }) {
@@ -36,6 +37,7 @@ function App() {
           <Route path="overview" element={<Overview />} />
           <Route path="explorer" element={<Explorer />} />
           <Route path="simulator" element={<Simulator />} />
+          <Route path="milestones" element={<Milestones />} />
           <Route path="jcr" element={<Jcr />} />
           <Route path="scenarios" element={<Scenarios />} />
         </Route>
