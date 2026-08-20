@@ -22,6 +22,13 @@ export default function Explorer() {
   const [selected, setSelected] = useState<string>('A');
   const [q, setQ] = useState('');
   const [onlyModified, setOnlyModified] = useState(false);
+  // The rail costs 300px that the wide OPEX/overhead tables need on a laptop.
+  const [railOpen, setRailOpen] = useState(
+    () => localStorage.getItem('mcs.explorerRail') !== 'closed',
+  );
+  useEffect(() => {
+    localStorage.setItem('mcs.explorerRail', railOpen ? 'open' : 'closed');
+  }, [railOpen]);
 
   const capexById = useMemo(() => new Map(baseline.capexItems.map((i) => [i.id, i])), []);
   const opexById = useMemo(() => new Map(baseline.opexItems.map((i) => [i.id, i])), []);
@@ -115,11 +122,24 @@ export default function Explorer() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[300px_1fr]">
+      <div
+        className="grid gap-4"
+        style={{ gridTemplateColumns: railOpen ? '300px minmax(0, 1fr)' : 'minmax(0, 1fr)' }}
+      >
         {/* ------------------------------------------------ schedule picker */}
+        {railOpen && (
         <Card
           title="Schedules"
           subtitle={`${schedules.length} in ${kind.toUpperCase()}`}
+          right={
+            <button
+              className="faint text-[13px] hover:!text-[color:var(--accent)]"
+              title="Collapse the schedule list"
+              onClick={() => setRailOpen(false)}
+            >
+              «
+            </button>
+          }
           bodyClass="p-2"
         >
           <div className="flex max-h-[640px] flex-col gap-0.5 overflow-y-auto">
@@ -162,12 +182,22 @@ export default function Explorer() {
             })}
           </div>
         </Card>
+        )}
 
         {/* ------------------------------------------------------- detail */}
         {current ? (
           <Card
             title={
               <span className="flex items-center gap-2">
+                {!railOpen && (
+                  <button
+                    className="faint text-[13px] hover:!text-[color:var(--accent)]"
+                    title="Show the schedule list"
+                    onClick={() => setRailOpen(true)}
+                  >
+                    »
+                  </button>
+                )}
                 <span
                   className="grid size-6 place-items-center rounded-md text-[11px] font-bold text-white"
                   style={{ background: 'var(--accent)' }}
@@ -180,6 +210,19 @@ export default function Explorer() {
             subtitle={`${current.itemCount} line items · ${current.track} · tendered ${crore(current.baselineExGst)}`}
             right={
               <div className="flex items-center gap-4">
+                {!railOpen && (
+                  <select
+                    className="inp !w-[200px] !py-1 !text-[12px]"
+                    value={selected}
+                    onChange={(e) => setSelected(e.target.value)}
+                  >
+                    {schedules.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.id} — {s.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <label className="flex items-center gap-2 text-[12px]">
                   <span className="faint">Scale ×</span>
                   <NumberCell
