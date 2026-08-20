@@ -75,7 +75,7 @@ export default function Shell() {
   return (
     <div className="flex h-full">
       <aside
-        className="no-print flex shrink-0 flex-col py-5 transition-[width] duration-150"
+        className="no-print flex shrink-0 flex-col overflow-y-auto py-5 transition-[width] duration-150"
         style={{
           // A flex item defaults to min-width:auto, so it refuses to shrink below
           // its content width — width alone would be ignored here. Pin all three.
@@ -88,9 +88,7 @@ export default function Shell() {
         }}
       >
         {/* ------------------------------------------------------ brand row */}
-        <div
-          className={`mb-6 flex items-center gap-2.5 ${collapsed ? 'justify-center' : 'px-2'}`}
-        >
+        <div className={`mb-5 flex items-center gap-2.5 ${collapsed ? 'flex-col' : 'px-2'}`}>
           <div
             className="grid size-9 shrink-0 place-items-center rounded-[10px] text-[15px] font-black text-white"
             style={{ background: 'var(--accent)' }}
@@ -99,11 +97,26 @@ export default function Shell() {
             M
           </div>
           {!collapsed && (
-            <div className="min-w-0 leading-tight">
+            <div className="min-w-0 flex-1 leading-tight">
               <p className="truncate text-[14px] font-bold">MCS PMU</p>
               <p className="faint truncate text-[11px]">Expense Platform</p>
             </div>
           )}
+          {/* The collapse control sits here, at the top, so it is always on
+              screen — at the foot of the rail it fell below the fold. */}
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="grid size-7 shrink-0 place-items-center rounded-lg text-[13px] font-bold transition"
+            style={{
+              border: '1px solid var(--border)',
+              background: 'var(--surface)',
+              color: 'var(--text-muted)',
+            }}
+          >
+            {collapsed ? '»' : '«'}
+          </button>
         </div>
 
         <nav className="flex flex-col gap-5">
@@ -180,16 +193,30 @@ export default function Shell() {
             </div>
           )}
 
-          <button
-            className="navpill !justify-center"
-            onClick={() => setCollapsed((c) => !c)}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <span className="text-[13px]">{collapsed ? '»' : '«'}</span>
-            {!collapsed && <span className="text-[12px]">Collapse</span>}
-          </button>
-
-          {!collapsed && (
+          {collapsed ? (
+            /* Icon-only equivalents, so nothing becomes unreachable when collapsed. */
+            <div className="flex flex-col items-center gap-1">
+              <button
+                className="navpill !justify-center !px-0"
+                style={{ width: '100%' }}
+                title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              >
+                {theme === 'dark' ? '☀' : '☾'}
+              </button>
+              <button
+                className="navpill !justify-center !px-0"
+                style={{ width: '100%' }}
+                title={`Sign out (${user})`}
+                onClick={() => {
+                  logout();
+                  nav('/login');
+                }}
+              >
+                ⏻
+              </button>
+            </div>
+          ) : (
             <div className="flex items-center justify-between px-1">
               <button
                 className="faint text-[12px] hover:underline"
